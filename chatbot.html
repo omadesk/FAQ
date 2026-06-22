@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OmaDesk — Chat with Sara</title>
+<style>
+  :root {
+    --wa-dark-green: #075E54;
+    --wa-green: #128C7E;
+    --wa-light-green: #25D366;
+    --wa-bg: #ECE5DD;
+    --wa-bubble-in: #FFFFFF;
+    --wa-bubble-out: #DCF8C6;
+    --wa-text: #111B21;
+    --wa-text-dim: #667781;
+    --wa-border: #D1D7DB;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #0b141a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* ===== CONFIG NOTICE (visible only if API key missing) ===== */
+  .config-banner {
+    display: none;
+    background: #fff3cd;
+    color: #664d03;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-align: center;
+    border-bottom: 1px solid #ffe69c;
+  }
+
+  .phone-frame {
+    width: 380px;
+    height: 720px;
+    background: var(--wa-bg);
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    border: 8px solid #1a1a1a;
+  }
+
+  /* ===== HEADER ===== */
+  .chat-header {
+    background: var(--wa-dark-green);
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #25D366, #128C7E);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .header-info { flex: 1; min-width: 0; }
+  .header-name { font-weight: 600; font-size: 16px; line-height: 1.2; }
+  .header-status { font-size: 12px; opacity: 0.85; line-height: 1.3; }
+  .header-status.typing { color: #d3f3df; }
+
+  .header-icons { display: flex; gap: 18px; opacity: 0.9; }
+
+  /* ===== MESSAGES AREA ===== */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 10px;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(0,0,0,0.015) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(0,0,0,0.015) 0%, transparent 50%);
+  }
+
+  .day-divider {
+    text-align: center;
+    margin: 8px 0 16px;
+  }
+  .day-divider span {
+    background: #E1F2FB;
+    color: var(--wa-text-dim);
+    font-size: 11.5px;
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+
+  .msg-row {
+    display: flex;
+    margin-bottom: 4px;
+  }
+  .msg-row.out { justify-content: flex-end; }
+  .msg-row.in { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 78%;
+    padding: 7px 9px 8px 10px;
+    border-radius: 8px;
+    font-size: 14.3px;
+    line-height: 1.4;
+    position: relative;
+    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .bubble.in {
+    background: var(--wa-bubble-in);
+    color: var(--wa-text);
+    border-top-left-radius: 2px;
+  }
+  .bubble.out {
+    background: var(--wa-bubble-out);
+    color: var(--wa-text);
+    border-top-right-radius: 2px;
+  }
+
+  .bubble-time {
+    font-size: 11px;
+    color: var(--wa-text-dim);
+    float: right;
+    margin: 4px 0 -4px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .quick-link-btn {
+    display: inline-block;
+    margin-top: 8px;
+    background: var(--wa-light-green);
+    color: white;
+    padding: 8px 14px;
+    border-radius: 18px;
+    font-size: 13.5px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+  }
+
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 10px 4px;
+    align-items: center;
+  }
+  .typing-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #9aa5ab;
+    animation: typingBounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  /* ===== INPUT AREA ===== */
+  .input-area {
+    background: #F0F2F5;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .input-box {
+    flex: 1;
+    background: white;
+    border-radius: 22px;
+    padding: 9px 16px;
+    border: none;
+    font-size: 14.5px;
+    outline: none;
+    color: var(--wa-text);
+  }
+  .send-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--wa-dark-green);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .send-btn:disabled { opacity: 0.5; cursor: default; }
+  .send-btn svg { width: 18px; height: 18px; fill: white; }
+
+  .messages::-webkit-scrollbar { width: 5px; }
+  .messages::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <div class="config-banner" id="configBanner">
+    Add your Gemini API key in the CONFIG section of this file to activate live replies.
+  </div>
+
+  <div class="chat-header">
+    <div class="avatar">S</div>
+    <div class="header-info">
+      <div class="header-name">Sara · OmaDesk</div>
+      <div class="header-status" id="headerStatus">online</div>
+    </div>
+    <div class="header-icons">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M15.9 14.3H15l-.3-.3c1-1.1 1.6-2.6 1.6-4.2 0-3.6-2.9-6.5-6.5-6.5S3.3 6.2 3.3 9.8s2.9 6.5 6.5 6.5c1.6 0 3.1-.6 4.2-1.6l.3.3v.9l5 5 1.5-1.5-5-5zm-6 0c-2.5 0-4.5-2-4.5-4.5s2-4.5 4.5-4.5 4.5 2 4.5 4.5-2 4.5-4.5 4.5z"/></svg>
+    </div>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="day-divider"><span>TODAY</span></div>
+  </div>
+
+  <div class="input-area">
+    <input type="text" class="input-box" id="userInput" placeholder="Type a message" autocomplete="off">
+    <button class="send-btn" id="sendBtn" aria-label="Send message">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   CONFIG — edit these values to reuse this widget for any
+   business, campaign, or niche.
+   ========================================================= */
+const CONFIG = {
+  GEMINI_API_KEY: "AQ.Ab8RN6IttKku11gMIOsWBRCNKIrStqMyI_sxKdFTKY-wDe3VNg",
+  GEMINI_MODEL: "gemini-2.5-flash",
+  SHEET_LOGGER_URL: "https://script.google.com/macros/s/AKfycby2M5WRFT6Dczx77nSdgVxloW047Aqbf5pK81NbsWZaTuL0UERG9SA9uK_oNVCbcYum/exec",
+  BOOKING_FORM_URL: "https://tally.so/r/D4bKoN",
+  COMPLAINT_FORM_URL: "https://tally.so/r/MePYRX",
+  ASSISTANT_NAME: "Sara",
+  BUSINESS_NAME: "OmaDesk",
+  WELCOME_MESSAGE: "Hi, welcome to OmaDesk! I'm Sara 😊 Ask me anything about our cleaning services, pricing, areas we cover, or how booking works."
+};
+
+const FAQ_KNOWLEDGE = `
+BUSINESS: OmaDesk
+ASSISTANT NAME: Sara
+
+SERVICES:
+- Domestic and villa cleaning
+- Deep cleaning
+- End of tenancy cleaning
+- Post construction cleaning
+- Office and compound cleaning
+- Sandstorm and post-storm cleaning
+- AC vent and filter cleaning
+- Mould and humidity treatment
+
+AREAS COVERED:
+Dubai, Abu Dhabi, Sharjah, and Ajman. For a specific area, confirm we can reach them and suggest sharing exact location for certainty.
+
+PRICING:
+Pricing depends on property size and service type. We do not quote fixed prices in chat. Offer a free quote and direct them to book for an accurate quote. No hidden charges.
+
+PRICING MODEL:
+Most standard cleans are priced per job rather than per hour, depending on the service.
+
+MINIMUM BOOKING:
+There is a minimum booking requirement that depends on location and service type. Direct them to contact us or book to confirm specifics.
+
+DISCOUNTS:
+Discounts are available for regular bookings, referrals, and long term contracts.
+
+PACKAGES:
+Weekly, bi-weekly, and monthly cleaning packages are available.
+
+HOW TO BOOK:
+Booking is quick through our booking form, no lengthy back and forth needed.
+
+ADVANCE NOTICE:
+Recommend booking at least 24 to 48 hours in advance. Last minute requests are accommodated when possible.
+
+SAME DAY BOOKING:
+Depends on availability, encourage them to book and we will confirm.
+
+RESCHEDULE:
+Possible with at least 12 hours notice.
+
+CANCELLATION:
+Possible, more notice helps us adjust the schedule.
+
+END OF TENANCY CLEANING:
+We specialize in this, meeting landlord and agency standards.
+
+SUPPLIES AND EQUIPMENT:
+Our team brings all professional cleaning products and equipment at no extra charge.
+
+DURATION:
+Depends on property size. A standard one bedroom apartment takes about 2 to 3 hours. Exact estimate given at booking.
+
+OFFICE / COMMERCIAL CLEANING:
+Yes, customized commercial and office cleaning plans available, including after-hours scheduling.
+
+DEEP CLEANING:
+One of the most popular services. Covers areas not in a regular clean, like inside appliances, grout, and high surfaces.
+
+SAME CLEANER FOR RETURNING CLIENTS:
+We try to assign the same team to returning clients when possible, subject to availability.
+
+STAFF TRAINING:
+All cleaning staff are professionally trained and experienced.
+
+STAFF SCREENING:
+All team members are screened before joining.
+
+DAMAGE POLICY:
+Full responsibility taken for any damage caused by the team. Should be reported immediately for prompt resolution.
+
+PAYMENT METHODS:
+Bank transfer, cash, and selected mobile payment options. Confirmed at booking.
+
+CASH PAYMENT:
+Accepted, amount confirmed before the job begins.
+
+INVOICES:
+Formal invoices available for corporate clients, can accommodate company payment processes.
+
+RAMADAN HOURS:
+Working hours adjust during Ramadan. Early morning or evening slots can be arranged.
+
+FEMALE STAFF PREFERENCE:
+Fully respected, only female staff assigned to the home upon request.
+
+MALE CLIENT CONCERN ABOUT FEMALE STAFF AT HOME:
+Fully understood and respected, can arrange accordingly.
+
+CULTURAL RESPECT:
+Diverse, culturally respectful team, appropriate conduct followed in every home.
+
+PRAYER ROOM CLEANING:
+Cleaned with full respect and care, appropriate products used, any guidelines followed.
+
+EID PREPARATION:
+Handled regularly, recommend booking early as slots fill quickly during this period.
+
+FRIDAY AVAILABILITY:
+May vary, confirm by contacting us for the specific date.
+
+ECO FRIENDLY OPTIONS:
+Available on request, safe for family, pets, and environment.
+
+PRODUCT SAFETY:
+Standard products are safe for households with children and pets. Fragrance free options available if needed.
+
+SAND AND DUST MANAGEMENT:
+Common in the UAE, we are equipped to handle heavy buildup regularly.
+
+AC VENT CLEANING:
+Included as part of deep clean service, improves air quality in the UAE climate.
+
+MOULD AND HUMIDITY TREATMENT:
+Treated using specialist products, deep clean recommended, prevention advice available.
+
+SANDSTORM CLEANUP:
+Common request, well equipped to handle it quickly and thoroughly.
+
+HALAL / PROHIBITED INGREDIENTS:
+Products used are free from prohibited ingredients, specifics available on request.
+
+VILLA CLEANING:
+Core service, from single rooms to full villa deep cleans.
+
+HIGH RISE BUILDINGS:
+Serviced across the UAE, coordination with building management when required.
+
+MOVE IN CLEANING:
+Available, property made spotless before move in.
+
+POST CONSTRUCTION CLEANING:
+Specialist service, removes dust, debris, and residue from all surfaces.
+
+COMPOUND / LARGE SCALE PROJECTS:
+Handled, including compounds and multi unit properties, tailored quote needed.
+
+WEEKLY PLANS:
+Available, dedicated team assignable on a regular schedule.
+
+MONTHLY CONTRACTS:
+Available with preferential pricing.
+
+PAUSING A PLAN:
+Flexible arrangements available if plans change.
+
+STAFF VISAS:
+All staff legally employed with valid UAE work visas, operating within UAE labour regulations.
+
+LICENSING:
+Registered and licensed cleaning company operating legally in the UAE.
+
+INSURANCE:
+Carried to protect staff and property during every job.
+
+NO SHOW POLICY:
+Early notification given, replacement team arranged, booking always honoured.
+
+RECEIPTS:
+Official receipts and invoices available, suitable for company expense claims.
+
+DISSATISFACTION POLICY:
+If not happy with any part of the clean, contact within 24 hours and it will be corrected.
+
+RECLEAN GUARANTEE:
+If any area was missed or below standard, the team returns to reclean at no extra charge.
+
+REVIEWS:
+A review link is sent after the clean, appreciated but optional.
+`;
+
+const SYSTEM_PROMPT = `You are ${CONFIG.ASSISTANT_NAME}, a friendly customer support assistant for ${CONFIG.BUSINESS_NAME}, a cleaning company in the UAE.
+
+Your ONLY job is to answer customer questions using the FAQ knowledge below. Keep replies short, warm, and conversational, like a real WhatsApp message. Use 1-3 short sentences. You may use a single relevant emoji occasionally, never more than one per message.
+
+FAQ KNOWLEDGE:
+${FAQ_KNOWLEDGE}
+
+RULES:
+1. Only answer using the knowledge above. If something genuinely isn't covered, say you're not sure and offer to connect them with the team.
+2. Never invent exact prices. Always say pricing depends on the job and offer a free quote via booking.
+3. If the customer's message sounds like a booking request (they want to schedule, book, get a quote with specific details, or say things like "I want to book"), respond warmly and tell them you'll get them the booking link. Do NOT try to collect their name, date, or address yourself.
+4. If the customer's message sounds like a complaint, frustration about a past service, or dissatisfaction (e.g. "the cleaner didn't show up", "I'm not happy", "this was bad"), respond with empathy and tell them you'll get them the complaint form so the team can follow up properly. Do NOT try to resolve the complaint yourself.
+5. If the customer explicitly asks to speak to a human, agent, or real person, acknowledge warmly and let them know you'll connect them.
+6. Always respond in valid JSON only, no other text, in this exact format:
+{"reply": "your conversational reply text", "action": "none" | "booking" | "complaint" | "agent"}
+
+Set "action" to "booking" if rule 3 applies, "complaint" if rule 4 applies, "agent" if rule 5 applies, otherwise "none".`;
+
+/* ========================================================= */
+
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+const headerStatus = document.getElementById('headerStatus');
+const configBanner = document.getElementById('configBanner');
+
+let conversationHistory = [];
+let isWaiting = false;
+
+function checkConfig() {
+  if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.includes("PASTE_YOUR")) {
+    configBanner.style.display = 'block';
+    return false;
+  }
+  return true;
+}
+
+function getTime() {
+  const d = new Date();
+  let h = d.getHours();
+  const m = d.getMinutes().toString().padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function addMessage(text, sender, options = {}) {
+  const row = document.createElement('div');
+  row.className = `msg-row ${sender === 'bot' ? 'in' : 'out'}`;
+
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${sender === 'bot' ? 'in' : 'out'}`;
+  bubble.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+
+  const time = document.createElement('span');
+  time.className = 'bubble-time';
+  time.textContent = getTime() + (sender === 'user' ? ' ✓✓' : '');
+  bubble.appendChild(document.createElement('br'));
+  bubble.appendChild(time);
+
+  if (options.linkUrl) {
+    const btn = document.createElement('a');
+    btn.className = 'quick-link-btn';
+    btn.href = options.linkUrl;
+    btn.target = '_blank';
+    btn.rel = 'noopener';
+    btn.textContent = options.linkLabel || 'Open link';
+    bubble.appendChild(document.createElement('br'));
+    bubble.appendChild(btn);
+  }
+
+  row.appendChild(bubble);
+  messagesEl.appendChild(row);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function showTyping() {
+  headerStatus.textContent = 'typing...';
+  headerStatus.classList.add('typing');
+  const row = document.createElement('div');
+  row.className = 'msg-row in';
+  row.id = 'typingRow';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble in';
+  bubble.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  row.appendChild(bubble);
+  messagesEl.appendChild(row);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function hideTyping() {
+  headerStatus.textContent = 'online';
+  headerStatus.classList.remove('typing');
+  const row = document.getElementById('typingRow');
+  if (row) row.remove();
+}
+
+async function logToSheet(question, response) {
+  if (!CONFIG.SHEET_LOGGER_URL || CONFIG.SHEET_LOGGER_URL.includes("PASTE_YOUR")) return;
+  try {
+    await fetch(CONFIG.SHEET_LOGGER_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ question, response })
+    });
+  } catch (err) {
+    console.warn('Logging failed silently:', err);
+  }
+}
+
+async function callGemini(userText) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+
+  const contents = [
+    { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
+    { role: "model", parts: [{ text: '{"reply":"Understood, I will follow these rules.","action":"none"}' }] },
+    ...conversationHistory,
+    { role: "user", parts: [{ text: userText }] }
+  ];
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents,
+      generationConfig: { temperature: 0.4, maxOutputTokens: 300 }
+    })
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} ${errText}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  let parsed;
+  try {
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    parsed = JSON.parse(cleaned);
+  } catch (e) {
+    parsed = { reply: rawText || "Sorry, could you rephrase that?", action: "none" };
+  }
+
+  conversationHistory.push({ role: "user", parts: [{ text: userText }] });
+  conversationHistory.push({ role: "model", parts: [{ text: rawText }] });
+  if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
+
+  return parsed;
+}
+
+async function handleSend() {
+  const text = inputEl.value.trim();
+  if (!text || isWaiting) return;
+
+  addMessage(text, 'user');
+  inputEl.value = '';
+  isWaiting = true;
+  sendBtn.disabled = true;
+
+  if (!checkConfig()) {
+    setTimeout(() => {
+      addMessage("Thanks for your message! (Demo mode: add a Gemini API key in the CONFIG section to activate live AI replies.)", 'bot');
+      isWaiting = false;
+      sendBtn.disabled = false;
+    }, 500);
+    return;
+  }
+
+  showTyping();
+
+  try {
+    const result = await callGemini(text);
+    await new Promise(r => setTimeout(r, 500 + Math.random() * 500));
+    hideTyping();
+
+    if (result.action === 'booking') {
+      addMessage(result.reply, 'bot', { linkUrl: CONFIG.BOOKING_FORM_URL, linkLabel: '📅 Book Now' });
+    } else if (result.action === 'complaint') {
+      addMessage(result.reply, 'bot', { linkUrl: CONFIG.COMPLAINT_FORM_URL, linkLabel: '📝 File a Complaint' });
+    } else if (result.action === 'agent') {
+      addMessage(result.reply, 'bot', { linkUrl: CONFIG.COMPLAINT_FORM_URL.replace('/r/MePYRX',''), linkLabel: '💬 Continue on WhatsApp' });
+    } else {
+      addMessage(result.reply, 'bot');
+    }
+
+    logToSheet(text, result.reply);
+  } catch (err) {
+    console.error(err);
+    hideTyping();
+    addMessage("Sorry, I'm having a connection issue right now. Please try again in a moment.", 'bot');
+  }
+
+  isWaiting = false;
+  sendBtn.disabled = false;
+  inputEl.focus();
+}
+
+sendBtn.addEventListener('click', handleSend);
+inputEl.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') handleSend();
+});
+
+// Init
+checkConfig();
+setTimeout(() => {
+  addMessage(CONFIG.WELCOME_MESSAGE, 'bot');
+}, 400);
+</script>
+
+</body>
+</html>
