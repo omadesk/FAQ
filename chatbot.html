@@ -253,8 +253,7 @@
    business, campaign, or niche.
    ========================================================= */
 const CONFIG = {
-  GEMINI_API_KEY: "AIzaSyC07FkPuA-KNn3RQELovX87RLH_mksR02I",
-  GEMINI_MODEL: "gemini-2.5-flash",
+  GEMINI_PROXY_URL: "https://script.google.com/macros/s/AKfycbx68cQPEsuCJam_RJHeMUcKbAm0K_vGEGFV9cF6xmwULPDbIxQQckGjsHecF3mEx2AN/exec",
   SHEET_LOGGER_URL: "https://script.google.com/macros/s/AKfycby2M5WRFT6Dczx77nSdgVxloW047Aqbf5pK81NbsWZaTuL0UERG9SA9uK_oNVCbcYum/exec",
   BOOKING_FORM_URL: "https://tally.so/r/D4bKoN",
   COMPLAINT_FORM_URL: "https://tally.so/r/MePYRX",
@@ -467,7 +466,7 @@ let conversationHistory = [];
 let isWaiting = false;
 
 function checkConfig() {
-  if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.includes("PASTE_YOUR")) {
+  if (!CONFIG.GEMINI_PROXY_URL || CONFIG.GEMINI_PROXY_URL.includes("PASTE_YOUR")) {
     configBanner.style.display = 'block';
     return false;
   }
@@ -555,8 +554,6 @@ async function logToSheet(question, response) {
 }
 
 async function callGemini(userText) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.GEMINI_MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-
   const contents = [
     { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
     { role: "model", parts: [{ text: '{"reply":"Understood, I will follow these rules.","action":"none"}' }] },
@@ -564,9 +561,9 @@ async function callGemini(userText) {
     { role: "user", parts: [{ text: userText }] }
   ];
 
-  const response = await fetch(url, {
+  const response = await fetch(CONFIG.GEMINI_PROXY_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({
       contents,
       generationConfig: { temperature: 0.4, maxOutputTokens: 300 }
@@ -575,10 +572,15 @@ async function callGemini(userText) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Gemini API error: ${response.status} ${errText}`);
+    throw new Error(`Proxy error: ${response.status} ${errText}`);
   }
 
   const data = await response.json();
+
+  if (data.error) {
+    throw new Error(`Gemini API error via proxy: ${JSON.stringify(data.error)}`);
+  }
+
   const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
   let parsed;
