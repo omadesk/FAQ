@@ -563,7 +563,6 @@ async function callGemini(userText) {
 
   const response = await fetch(CONFIG.GEMINI_PROXY_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({
       contents,
       generationConfig: { temperature: 0.4, maxOutputTokens: 300 }
