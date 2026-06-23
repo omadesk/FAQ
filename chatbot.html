@@ -253,7 +253,7 @@
    business, campaign, or niche.
    ========================================================= */
 const CONFIG = {
-  GEMINI_PROXY_URL: "https://script.google.com/macros/s/AKfycbx68cQPEsuCJam_RJHeMUcKbAm0K_vGEGFV9cF6xmwULPDbIxQQckGjsHecF3mEx2AN/exec",
+  GEMINI_PROXY_URL: "https://script.google.com/macros/s/AKfycbyJjpwsHknC4nMowDVQVVneZ5YIQedeNfP8nwhqqFDNvHiU88nSyvuz2LcCQ4uCe18N/exec",
   SHEET_LOGGER_URL: "https://script.google.com/macros/s/AKfycby2M5WRFT6Dczx77nSdgVxloW047Aqbf5pK81NbsWZaTuL0UERG9SA9uK_oNVCbcYum/exec",
   BOOKING_FORM_URL: "https://tally.so/r/D4bKoN",
   COMPLAINT_FORM_URL: "https://tally.so/r/MePYRX",
@@ -563,6 +563,7 @@ async function callGemini(userText) {
 
   const response = await fetch(CONFIG.GEMINI_PROXY_URL, {
     method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
       contents,
       generationConfig: { temperature: 0.4, maxOutputTokens: 300 }
