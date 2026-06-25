@@ -221,7 +221,7 @@
 
 <div class="phone-frame">
   <div class="config-banner" id="configBanner">
-    Add your Gemini API key in the CONFIG section of this file to activate live replies.
+    Add your Groq proxy URL in the CONFIG section of this file to activate live replies.
   </div>
 
   <div class="chat-header">
@@ -253,7 +253,7 @@
    business, campaign, or niche.
    ========================================================= */
 const CONFIG = {
-  GEMINI_PROXY_URL: "https://script.google.com/macros/s/AKfycbyJjpwsHknC4nMowDVQVVneZ5YIQedeNfP8nwhqqFDNvHiU88nSyvuz2LcCQ4uCe18N/exec",
+  GROQ_PROXY_URL: "https://script.google.com/macros/s/AKfycbxa_28GCEVxGbHXpN7Egn77WcmO4B8rEd2-E0MDSuF3b3A0SXexm96_KregHZ4MVyBp/exec",
   SHEET_LOGGER_URL: "https://script.google.com/macros/s/AKfycby2M5WRFT6Dczx77nSdgVxloW047Aqbf5pK81NbsWZaTuL0UERG9SA9uK_oNVCbcYum/exec",
   BOOKING_FORM_URL: "https://tally.so/r/D4bKoN",
   COMPLAINT_FORM_URL: "https://tally.so/r/MePYRX",
@@ -466,7 +466,7 @@ let conversationHistory = [];
 let isWaiting = false;
 
 function checkConfig() {
-  if (!CONFIG.GEMINI_PROXY_URL || CONFIG.GEMINI_PROXY_URL.includes("PASTE_YOUR")) {
+  if (!CONFIG.GROQ_PROXY_URL || CONFIG.GROQ_PROXY_URL.includes("PASTE_YOUR")) {
     configBanner.style.display = 'block';
     return false;
   }
@@ -553,20 +553,20 @@ async function logToSheet(question, response) {
   }
 }
 
-async function callGemini(userText) {
-  const contents = [
-    { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-    { role: "model", parts: [{ text: '{"reply":"Understood, I will follow these rules.","action":"none"}' }] },
+async function callGroq(userText) {
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT },
     ...conversationHistory,
-    { role: "user", parts: [{ text: userText }] }
+    { role: "user", content: userText }
   ];
 
-  const response = await fetch(CONFIG.GEMINI_PROXY_URL, {
+  const response = await fetch(CONFIG.GROQ_PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
-      contents,
-      generationConfig: { temperature: 0.4, maxOutputTokens: 300 }
+      messages,
+      temperature: 0.4,
+      max_tokens: 300
     })
   });
 
@@ -578,10 +578,10 @@ async function callGemini(userText) {
   const data = await response.json();
 
   if (data.error) {
-    throw new Error(`Gemini API error via proxy: ${JSON.stringify(data.error)}`);
+    throw new Error(`Groq API error via proxy: ${JSON.stringify(data.error)}`);
   }
 
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const rawText = data.choices?.[0]?.message?.content || '';
 
   let parsed;
   try {
@@ -591,8 +591,8 @@ async function callGemini(userText) {
     parsed = { reply: rawText || "Sorry, could you rephrase that?", action: "none" };
   }
 
-  conversationHistory.push({ role: "user", parts: [{ text: userText }] });
-  conversationHistory.push({ role: "model", parts: [{ text: rawText }] });
+  conversationHistory.push({ role: "user", content: userText });
+  conversationHistory.push({ role: "assistant", content: rawText });
   if (conversationHistory.length > 16) conversationHistory = conversationHistory.slice(-16);
 
   return parsed;
@@ -609,7 +609,7 @@ async function handleSend() {
 
   if (!checkConfig()) {
     setTimeout(() => {
-      addMessage("Thanks for your message! (Demo mode: add a Gemini API key in the CONFIG section to activate live AI replies.)", 'bot');
+      addMessage("Thanks for your message! (Demo mode: add your Groq proxy URL in the CONFIG section to activate live AI replies.)", 'bot');
       isWaiting = false;
       sendBtn.disabled = false;
     }, 500);
@@ -619,7 +619,7 @@ async function handleSend() {
   showTyping();
 
   try {
-    const result = await callGemini(text);
+    const result = await callGroq(text);
     await new Promise(r => setTimeout(r, 500 + Math.random() * 500));
     hideTyping();
 
