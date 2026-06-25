@@ -449,7 +449,7 @@ RULES:
 3. If the customer's message sounds like a booking request (they want to schedule, book, get a quote with specific details, or say things like "I want to book"), respond warmly and tell them you'll get them the booking link. Do NOT try to collect their name, date, or address yourself.
 4. If the customer's message sounds like a complaint, frustration about a past service, or dissatisfaction (e.g. "the cleaner didn't show up", "I'm not happy", "this was bad"), respond with empathy and tell them you'll get them the complaint form so the team can follow up properly. Do NOT try to resolve the complaint yourself.
 5. If the customer explicitly asks to speak to a human, agent, or real person, acknowledge warmly and let them know you'll connect them.
-6. Always respond in valid JSON only, no other text, in this exact format:
+6. Your entire response must be ONLY a single JSON object, nothing before it and nothing after it. Do not write a conversational sentence and then also output JSON. Do not repeat the reply text outside the JSON. The JSON object itself is your whole answer, in this exact format:
 {"reply": "your conversational reply text", "action": "none" | "booking" | "complaint" | "agent"}
 
 Set "action" to "booking" if rule 3 applies, "complaint" if rule 4 applies, "agent" if rule 5 applies, otherwise "none".`;
@@ -586,7 +586,10 @@ async function callGroq(userText) {
   let parsed;
   try {
     const cleaned = rawText.replace(/```json|```/g, '').trim();
-    parsed = JSON.parse(cleaned);
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    const toParse = jsonMatch ? jsonMatch[0] : cleaned;
+    parsed = JSON.parse(toParse);
+    if (!parsed.reply) throw new Error('no reply field');
   } catch (e) {
     parsed = { reply: rawText || "Sorry, could you rephrase that?", action: "none" };
   }
